@@ -52,6 +52,7 @@ public class DefaultJWTCallerPrincipalFactory extends JWTCallerPrincipalFactory 
             }
             MPAccessToken jwt = verifier.getToken();
             verifier.verify();
+            jwt.getOtherClaims().put("bearer_token", token);
             principal = new DefaultJWTCallerPrincipal(jwt);
         }
         catch (VerificationException e) {

@@ -100,6 +100,7 @@ public class TestTokenValidation {
         System.out.printf("Parsed caller principal: %s\n", callerPrincipal.toString(true));
 
         // Validate the required claims
+        Assert.assertEquals("bearer_token", jwt, callerPrincipal.getRawToken());
         Assert.assertEquals("iss", "https://server.example.com", callerPrincipal.getIssuer());
         Assert.assertEquals("sub", "24400320", callerPrincipal.getSubject());
         Assert.assertEquals("aud", "s6BhdRkqt3", callerPrincipal.getAudience()[0]);

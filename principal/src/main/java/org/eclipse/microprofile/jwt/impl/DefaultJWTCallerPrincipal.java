@@ -41,6 +41,11 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
     }
 
     @Override
+    public String getRawToken() {
+        return jwt.getOtherClaims().get("bearer_token").toString();
+    }
+
+    @Override
     public String getIssuer() {
         return jwt.getIssuer();
     }
