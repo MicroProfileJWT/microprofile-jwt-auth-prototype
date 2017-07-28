@@ -38,22 +38,22 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
     static {
         // Initialize the other claim names to some of the key ones in OIDC/OAuth2 but not MP JWT
         Set<String> tmp = new HashSet<>();
-        OTHER_CLAIM_NAMES.add("nbf");
-        OTHER_CLAIM_NAMES.add("auth_time");
-        OTHER_CLAIM_NAMES.add("azp");
-        OTHER_CLAIM_NAMES.add("nonce");
-        OTHER_CLAIM_NAMES.add("acr");
-        OTHER_CLAIM_NAMES.add("at_hash");
-        OTHER_CLAIM_NAMES.add("name");
-        OTHER_CLAIM_NAMES.add("given_name");
-        OTHER_CLAIM_NAMES.add("family_name");
-        OTHER_CLAIM_NAMES.add("email");
-        OTHER_CLAIM_NAMES.add("email_verified");
-        OTHER_CLAIM_NAMES.add("zoneinfo");
-        OTHER_CLAIM_NAMES.add("website");
+        tmp.add("nbf");
+        tmp.add("auth_time");
+        tmp.add("azp");
+        tmp.add("nonce");
+        tmp.add("acr");
+        tmp.add("at_hash");
+        tmp.add("name");
+        tmp.add("given_name");
+        tmp.add("family_name");
+        tmp.add("email");
+        tmp.add("email_verified");
+        tmp.add("zoneinfo");
+        tmp.add("website");
         // Until this is changed to the MP standard
-        OTHER_CLAIM_NAMES.add("preferred_username");
-        OTHER_CLAIM_NAMES.add("updated_at");
+        tmp.add("preferred_username");
+        tmp.add("updated_at");
         OTHER_CLAIM_NAMES = Collections.unmodifiableSet(tmp);
     }
     private MPAccessToken jwt;
