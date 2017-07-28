@@ -23,6 +23,7 @@ import org.eclipse.microprofile.jwt.principal.JWTCallerPrincipal;
 
 import javax.security.auth.Subject;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,28 @@ import java.util.Set;
  * @see MPAccessToken
  */
 public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
+    private static Set<String> OTHER_CLAIM_NAMES;
+    static {
+        // Initialize the other claim names to some of the key ones in OIDC/OAuth2 but not MP JWT
+        Set<String> tmp = new HashSet<>();
+        OTHER_CLAIM_NAMES.add("nbf");
+        OTHER_CLAIM_NAMES.add("auth_time");
+        OTHER_CLAIM_NAMES.add("azp");
+        OTHER_CLAIM_NAMES.add("nonce");
+        OTHER_CLAIM_NAMES.add("acr");
+        OTHER_CLAIM_NAMES.add("at_hash");
+        OTHER_CLAIM_NAMES.add("name");
+        OTHER_CLAIM_NAMES.add("given_name");
+        OTHER_CLAIM_NAMES.add("family_name");
+        OTHER_CLAIM_NAMES.add("email");
+        OTHER_CLAIM_NAMES.add("email_verified");
+        OTHER_CLAIM_NAMES.add("zoneinfo");
+        OTHER_CLAIM_NAMES.add("website");
+        // Until this is changed to the MP standard
+        OTHER_CLAIM_NAMES.add("preferred_username");
+        OTHER_CLAIM_NAMES.add("updated_at");
+        OTHER_CLAIM_NAMES = Collections.unmodifiableSet(tmp);
+    }
     private MPAccessToken jwt;
 
     public DefaultJWTCallerPrincipal(MPAccessToken jwt) {
@@ -126,6 +149,75 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
             }
         }
         return roles;
+    }
+
+    /**
+     * Access the standard but non-MP mandated claim names this token may have. Note that the token may have even more
+     * custom claims avaialable via the {@link #getOtherClaim(String)} method.
+     * @return standard but non-MP mandated claim names this token may have.
+     */
+    @Override
+    public Set<String> getOtherClaimNames() {
+        return OTHER_CLAIM_NAMES;
+    }
+
+    @Override
+    public Object getOtherClaim(String claimName) {
+        Object claim = null;
+        // Try the other claims first
+        if(jwt.getOtherClaims().containsKey(claimName)) {
+            claim = jwt.getOtherClaims().get(claimName);
+        } else {
+            // Handle the standard, but non-MP mandated claims
+            switch (claimName) {
+                case "nbf":
+                    claim = jwt.getNotBefore();
+                    break;
+                case "auth_time":
+                    claim = jwt.getAuthTime();
+                    break;
+                case "azp":
+                    claim = jwt.getIssuedFor();
+                    break;
+                case "nonce":
+                    claim = jwt.getNonce();
+                    break;
+                case "acr":
+                    claim = jwt.getAcr();
+                    break;
+                case "at_hash":
+                    claim = jwt.getAccessTokenHash();
+                    break;
+                case "name":
+                    claim = jwt.getName();
+                    break;
+                case "given_name":
+                    claim = jwt.getGivenName();
+                    break;
+                case "family_name":
+                    claim = jwt.getFamilyName();
+                    break;
+                case "email":
+                    claim = jwt.getEmail();
+                    break;
+                case "email_verified":
+                    claim = jwt.getEmailVerified();
+                    break;
+                case "zoneinfo":
+                    claim = jwt.getZoneinfo();
+                    break;
+                case "website":
+                    claim = jwt.getWebsite();
+                    break;
+                case "preferred_username":
+                    claim = jwt.getPreferredUsername();
+                    break;
+                case "updated_at":
+                    claim = jwt.getUpdatedAt();
+                    break;
+            }
+        }
+        return claim;
     }
 
     @Override
