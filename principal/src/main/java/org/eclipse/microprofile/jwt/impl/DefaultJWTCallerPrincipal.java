@@ -51,15 +51,19 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
         tmp.add("email_verified");
         tmp.add("zoneinfo");
         tmp.add("website");
-        // Until this is changed to the MP standard
         tmp.add("preferred_username");
         tmp.add("updated_at");
         OTHER_CLAIM_NAMES = Collections.unmodifiableSet(tmp);
     }
     private MPAccessToken jwt;
 
-    public DefaultJWTCallerPrincipal(MPAccessToken jwt) {
-        super(jwt.getOtherClaims().get("unique_username").toString());
+    /**
+     * Create the DefaultJWTCallerPrincipal from the parsed JWT token and the extracted principal name
+     * @param jwt - the parsed JWT token representation
+     * @param name - the extracted unqiue name to use as the principal name; from "upn", "preferred_username" or "sub" claim
+     */
+    public DefaultJWTCallerPrincipal(MPAccessToken jwt, String name) {
+        super(name);
         this.jwt = jwt;
     }
 
@@ -83,12 +87,7 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
         return jwt.getSubject();
     }
 
-    @Override
-    public String getUniqueUsername() {
-        return getName();
-    }
-
-    @Override
+  @Override
     public String getTokenID() {
         return jwt.getId();
     }
@@ -111,19 +110,6 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
         if(globalGroups != null) {
             groups.addAll(globalGroups);
         }
-        // Next look at each service in the resource access mapping
-        Map<String, MPAccessToken.Access> serviceAccess = jwt.getResourceAccess();
-        for(Map.Entry<String, MPAccessToken.Access> service : serviceAccess.entrySet()) {
-            List<String> serviceGroups = (List<String>) service.getValue().getOtherClaims().get("groups");
-            if(serviceGroups != null) {
-                String serviceName = service.getKey();
-                for (String group : serviceGroups) {
-                    // Add each group with the service name prepended using the SERVICE_NAME_SEPARATOR
-                    String serviceGroupName = serviceName + JWTCallerPrincipal.SERVICE_NAME_SEPARATOR + group;
-                    groups.add(serviceGroupName);
-                }
-            }
-        }
         return groups;
     }
 
@@ -134,19 +120,6 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
         List<String> globalRoles = (List<String>) jwt.getOtherClaims().get("roles");
         if(globalRoles != null) {
             roles.addAll(globalRoles);
-        }
-        // Next look at each service in the resource access mapping
-        Map<String, MPAccessToken.Access> serviceAccess = jwt.getResourceAccess();
-        for(Map.Entry<String, MPAccessToken.Access> service : serviceAccess.entrySet()) {
-            Set<String> serviceRoles = service.getValue().getRoles();
-            if(serviceRoles != null) {
-                String serviceName = service.getKey();
-                for (String role : serviceRoles) {
-                    // Add each role with the service name prepended using the SERVICE_NAME_SEPARATOR
-                    String serviceRoleName = serviceName + JWTCallerPrincipal.SERVICE_NAME_SEPARATOR + role;
-                    roles.add(serviceRoleName);
-                }
-            }
         }
         return roles;
     }

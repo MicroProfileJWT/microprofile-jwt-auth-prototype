@@ -52,8 +52,17 @@ public class DefaultJWTCallerPrincipalFactory extends JWTCallerPrincipalFactory 
             }
             MPAccessToken jwt = verifier.getToken();
             verifier.verify();
+            // Save the raw bearer token in the other claims for use by the JWTPrincipal#getRawToken() method
             jwt.getOtherClaims().put("bearer_token", token);
-            principal = new DefaultJWTCallerPrincipal(jwt);
+            // We have to determine the unique name to use as the principal name. It comes from upn, preferred_username, sub in that order
+            String principalName = (String) jwt.getOtherClaims().get("upn");
+            if(principalName == null) {
+                principalName = (String) jwt.getOtherClaims().get("preferred_username");
+                if(principalName == null) {
+                    principalName = jwt.getSubject();
+                }
+            }
+            principal = new DefaultJWTCallerPrincipal(jwt, principalName);
         }
         catch (VerificationException e) {
             throw new ParseException("Failed to verify the input token", e);
