@@ -106,14 +106,12 @@ public class TestTokenValidation {
         Assert.assertEquals("aud", "s6BhdRkqt3", callerPrincipal.getAudience()[0]);
         Assert.assertEquals("exp", 1311281970, callerPrincipal.getExpirationTime());
         Assert.assertEquals("iat", 1311280970, callerPrincipal.getIssuedAtTime());
-        Assert.assertEquals("unique_username", "jdoe@example.com", callerPrincipal.getUniqueUsername());
         Assert.assertEquals("name", "jdoe@example.com", callerPrincipal.getName());
         Assert.assertEquals("jti", "a-123", callerPrincipal.getTokenID());
 
         // Validate the roles
         Set<String> roles = callerPrincipal.getRoles();
-        String[] expectedRoleNames = {"role-in-realm", "user", "manager", "my-service;role-in-my-service",
-                "service-B;role-in-B"};
+        String[] expectedRoleNames = {"role-in-realm", "user", "manager"};
         HashSet<String> missingRoles = new HashSet<>();
         for (String role : expectedRoleNames) {
             if(!roles.contains(role)) {
@@ -125,8 +123,7 @@ public class TestTokenValidation {
         }
         // Validate the groups
         Set<String> groups = callerPrincipal.getGroups();
-        String[] expectedGroupNames = {"group1", "group2", "my-service;group1", "my-service;group2",
-                "service-C;groupC", "service-C;web-tier"};
+        String[] expectedGroupNames = {"group1", "group2"};
         HashSet<String> missingGroups = new HashSet<>();
         for (String group : expectedGroupNames) {
             if(!groups.contains(group)) {
@@ -136,6 +133,11 @@ public class TestTokenValidation {
         if(missingGroups.size() > 0) {
             Assert.fail("There are missing groups: "+missingGroups);
         }
+
+        // Validate other claims
+        Object authTime = callerPrincipal.getOtherClaim("auth_time");
+        Assert.assertTrue("auth_time is an Integer", authTime instanceof Integer);
+        Assert.assertEquals("auth_time as int is 1311280969", 1311280969, authTime);
     }
 
     /**
