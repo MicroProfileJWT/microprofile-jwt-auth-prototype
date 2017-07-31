@@ -59,6 +59,10 @@ public abstract class JWTCallerPrincipalFactory {
 
                 JWTCallerPrincipalFactory newInstance = loadSpi(cl);
 
+                if (newInstance == null && cl != JWTCallerPrincipalFactory.class.getClassLoader()) {
+                    cl = JWTCallerPrincipalFactory.class.getClassLoader();
+                    newInstance = loadSpi(cl);
+                }
                 if (newInstance == null) {
                     throw new IllegalStateException("No JWTCallerPrincipalFactory implementation found!");
                 }
@@ -87,17 +91,21 @@ public abstract class JWTCallerPrincipalFactory {
             ServiceLoader<JWTCallerPrincipalFactory> sl = ServiceLoader.load(JWTCallerPrincipalFactory.class, cl);
             URL u = cl.getResource("/META-INF/services/org.eclipse.microprofile.jwt.principal.JWTCallerPrincipalFactory");
             System.out.printf("JWTCallerPrincipalFactory, cl=%s, u=%s, sl=%s\n", cl, u, sl);
-            for (JWTCallerPrincipalFactory spi : sl) {
-                if (instance != null) {
-                    throw new IllegalStateException(
-                            "Multiple JWTCallerPrincipalFactory implementations found: "
-                                    + spi.getClass().getName() + " and "
-                                    + instance.getClass().getName());
+            try {
+                for (JWTCallerPrincipalFactory spi : sl) {
+                    if (instance != null) {
+                        throw new IllegalStateException(
+                                "Multiple JWTCallerPrincipalFactory implementations found: "
+                                        + spi.getClass().getName() + " and "
+                                        + instance.getClass().getName());
+                    } else {
+                        System.out.printf("sl=%s, loaded=%s\n", sl, spi);
+                        instance = spi;
+                    }
                 }
-                else {
-                    System.out.printf("sl=%s, loaded=%s\n", sl, spi);
-                    instance = spi;
-                }
+            }
+            catch (Throwable e) {
+                System.err.printf("Warning: %s\n", e.getMessage());
             }
         }
         return instance;
