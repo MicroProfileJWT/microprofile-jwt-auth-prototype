@@ -19,15 +19,10 @@
  */
 package org.eclipse.microprofile.jwt.test.util;
 
-import com.nimbusds.jose.JOSEObjectType;
-import com.nimbusds.jose.JWSAlgorithm;
-import com.nimbusds.jose.JWSHeader;
-import com.nimbusds.jose.JWSSigner;
-import com.nimbusds.jose.crypto.RSASSASigner;
-import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jwt.SignedJWT;
-import net.minidev.json.JSONObject;
-import net.minidev.json.parser.JSONParser;
+import org.jose4j.jws.AlgorithmIdentifiers;
+import org.jose4j.jws.JsonWebSignature;
+import org.jose4j.jwt.JwtClaims;
+import org.jose4j.jwt.NumericDate;
 
 import java.io.InputStream;
 import java.security.KeyFactory;
@@ -41,8 +36,6 @@ import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.Set;
-
-import static net.minidev.json.parser.JSONParser.DEFAULT_PERMISSIVE_MODE;
 
 /**
  * Utiltities for generating a JWT for testing
@@ -82,17 +75,18 @@ public class TokenUtils {
         byte[] content = new byte[length];
         System.arraycopy(tmp, 0, content, 0, length);
 
-        JSONParser parser = new JSONParser(DEFAULT_PERMISSIVE_MODE);
-        JSONObject jwtContent = (JSONObject) parser.parse(content);
+        JwtClaims claims = JwtClaims.parse(new String(content));
+
         // Change the issuer to INVALID_ISSUER for failure testing if requested
         if (invalidFields.contains(InvalidFields.ISSUER)) {
-            jwtContent.put("iss", "INVALID_ISSUER");
+            claims.setIssuer("INVALID_ISSUER");
         }
         // If the exp claim is not updated, it will be an old value that should be seen as expired
         if (!invalidFields.contains(InvalidFields.EXP)) {
-            jwtContent.put("exp", currentTimeInSecs() + 300);
-            jwtContent.put("iat", currentTimeInSecs());
-            jwtContent.put("auth_time", currentTimeInSecs());
+            NumericDate now = NumericDate.now();
+            claims.setExpirationTimeMinutesInTheFuture(5);
+            claims.setIssuedAt(now);
+            claims.setClaim("auth_time", currentTimeInSecs());
         }
 
         PrivateKey pk;
@@ -106,16 +100,14 @@ public class TokenUtils {
             pk = readPrivateKey("/privateKey.pem");
         }
 
-        // Create RSA-signer with the private key
-        JWSSigner signer = new RSASSASigner(pk);
-        JWTClaimsSet claimsSet = JWTClaimsSet.parse(jwtContent);
-        JWSHeader jwtHeader = new JWSHeader.Builder(JWSAlgorithm.RS256)
-                .keyID("/privateKey.pem")
-                .type(JOSEObjectType.JWT)
-                .build();
-        SignedJWT signedJWT = new SignedJWT(jwtHeader, claimsSet);
-        signedJWT.sign(signer);
-        String jwt = signedJWT.serialize();
+        JsonWebSignature jws = new JsonWebSignature();
+        jws.setAlgorithmHeaderValue(AlgorithmIdentifiers.RSA_USING_SHA256);
+        jws.setHeader("typ", "JWT");
+        jws.setKeyIdHeaderValue("/privateKey.pem");
+        jws.setKey(pk);
+        jws.setPayload(claims.toJson());
+        String jwt = jws.getCompactSerialization();
+
         return jwt;
     }
 

@@ -19,26 +19,19 @@
  */
 package org.eclipse.microprofile.jwt.impl;
 
-import java.util.Collections;
-import java.util.Date;
-
-import com.nimbusds.jose.JOSEException;
-import com.nimbusds.jose.JWSAlgorithm;
-import com.nimbusds.jose.JWSVerifier;
-import com.nimbusds.jose.KeySourceException;
-import com.nimbusds.jose.crypto.RSASSAVerifier;
-import com.nimbusds.jose.proc.BadJOSEException;
-import com.nimbusds.jose.proc.JWSKeySelector;
-import com.nimbusds.jose.proc.SecurityContext;
-import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jwt.SignedJWT;
-import com.nimbusds.jwt.proc.BadJWTException;
-import com.nimbusds.jwt.proc.ConfigurableJWTProcessor;
-import com.nimbusds.jwt.proc.DefaultJWTProcessor;
 import org.eclipse.microprofile.jwt.principal.JWTAuthContextInfo;
 import org.eclipse.microprofile.jwt.principal.JWTCallerPrincipal;
 import org.eclipse.microprofile.jwt.principal.JWTCallerPrincipalFactory;
 import org.eclipse.microprofile.jwt.principal.ParseException;
+import org.jose4j.jwa.AlgorithmConstraints;
+import org.jose4j.jws.AlgorithmIdentifiers;
+import org.jose4j.jwt.JwtClaims;
+import org.jose4j.jwt.MalformedClaimException;
+import org.jose4j.jwt.NumericDate;
+import org.jose4j.jwt.consumer.InvalidJwtException;
+import org.jose4j.jwt.consumer.JwtConsumer;
+import org.jose4j.jwt.consumer.JwtConsumerBuilder;
+import org.jose4j.jwt.consumer.JwtContext;
 
 /**
  * A default implementation of the abstract JWTCallerPrincipalFactory that uses the Keycloak token parsing classes.
@@ -56,59 +49,44 @@ public class DefaultJWTCallerPrincipalFactory extends JWTCallerPrincipalFactory 
         JWTCallerPrincipal principal = null;
 
         try {
-            SignedJWT signedJWT = SignedJWT.parse(token);
-            // Validate the signature
-            JWSVerifier verifier = new RSASSAVerifier(authContextInfo.getSignerKey());
-            signedJWT.verify(verifier);
-            // Validate the issuer and expiration date
-            ConfigurableJWTProcessor<SecurityContext> jwtProcessor = new DefaultJWTProcessor<>();
-            jwtProcessor.setJWTClaimsSetVerifier((claimsSet, context) -> {
-                String issuer = claimsSet.getIssuer();
-                if (issuer == null || ! issuer.equals(authContextInfo.getIssuedBy())) {
-                    throw new BadJWTException("Invalid token issuer");
-                }
-                if(authContextInfo.getExpGracePeriodSecs() > 0) {
-                    Date expMS = null;
-                    try {
-                        // Nimbus coverts exp to a Date
-                        expMS = claimsSet.getDateClaim("exp");
-                    } catch (java.text.ParseException e) {
-                        throw new BadJWTException("Failed to get exp claim", e);
-                    }
-                    long now = System.currentTimeMillis();
-                    long expUpperMS = now + authContextInfo.getExpGracePeriodSecs() * 1000;
-                    // Fail if expMS is not in the past more than grace period ms
-                    if (expMS.getTime() < expUpperMS) {
-                        throw new BadJWTException("Token is expired");
-                    }
-                }
-            });
-            JWSKeySelector<SecurityContext> authContextKeySelector = (header, context) -> {
-                if(header.getAlgorithm() != JWSAlgorithm.RS256)
-                    throw new KeySourceException("RS256 algorithm no specified");
-                return Collections.singletonList(authContextInfo.getSignerKey());
-            };
-            jwtProcessor.setJWSKeySelector(authContextKeySelector);
-            jwtProcessor.process(signedJWT, null);
+            JwtConsumerBuilder builder = new JwtConsumerBuilder()
+                    .setRequireExpirationTime()
+                    .setRequireSubject()
+                    .setSkipDefaultAudienceValidation()
+                    .setExpectedIssuer(authContextInfo.getIssuedBy())
+                    .setVerificationKey(authContextInfo.getSignerKey())
+                    .setJwsAlgorithmConstraints(
+                            new AlgorithmConstraints(AlgorithmConstraints.ConstraintType.WHITELIST,
+                                    AlgorithmIdentifiers.RSA_USING_SHA256))
+                    ;
+            if(authContextInfo.getExpGracePeriodSecs() > 0) {
+                builder.setAllowedClockSkewInSeconds(authContextInfo.getExpGracePeriodSecs());
+            }
+            else {
+                builder.setEvaluationTime(NumericDate.fromSeconds(0));
+            }
+
+            JwtConsumer jwtConsumer = builder.build();
+            JwtContext jwtContext = jwtConsumer.process(token);
+            String type = jwtContext.getJoseObjects().get(0).getHeader("typ");
+            //  Validate the JWT and process it to the Claims
+            jwtConsumer.processContext(jwtContext);
+            JwtClaims claimsSet = jwtContext.getJwtClaims();
 
             // We have to determine the unique name to use as the principal name. It comes from upn, preferred_username, sub in that order
-            JWTClaimsSet claimsSet = signedJWT.getJWTClaimsSet();
-            String principalName = claimsSet.getStringClaim("upn");
+            String principalName = claimsSet.getClaimValue("upn", String.class);
             if(principalName == null) {
-                principalName = claimsSet.getStringClaim("preferred_username");
+                principalName = claimsSet.getClaimValue("preferred_username", String.class);
                 if(principalName == null) {
                     principalName = claimsSet.getSubject();
                 }
             }
-            principal = new DefaultJWTCallerPrincipal(signedJWT, claimsSet, principalName);
+            principal = new DefaultJWTCallerPrincipal(token, type, claimsSet, principalName);
         }
-        catch (java.text.ParseException e) {
-            throw new ParseException("Failed to parse token", e);
+        catch (InvalidJwtException e) {
+            throw new ParseException("Failed to verify token", e);
         }
-        catch (JOSEException e) {
-            throw new ParseException("Failed to verify token signature", e);
-        }
-        catch (BadJOSEException e) {
+        catch (MalformedClaimException e) {
             throw new ParseException("Failed to verify token claims", e);
         }
 

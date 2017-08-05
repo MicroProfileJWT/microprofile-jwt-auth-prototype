@@ -19,23 +19,20 @@
  */
 package org.eclipse.microprofile.jwt.impl;
 
-import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jwt.SignedJWT;
 import org.eclipse.microprofile.jwt.principal.JWTCallerPrincipal;
+import org.jose4j.jwt.JwtClaims;
+import org.jose4j.jwt.MalformedClaimException;
 
 import javax.security.auth.Subject;
 
-import java.text.ParseException;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /**
- * A default implementation of JWTCallerPrincipal that wraps the nimbus SignedJWT.
- * @see SignedJWT
+ * A default implementation of JWTCallerPrincipal that wraps the jose4j JwtClaims.
+ * @see JwtClaims
  */
 public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
     private static Set<String> OTHER_CLAIM_NAMES;
@@ -59,34 +56,45 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
         tmp.add("updated_at");
         OTHER_CLAIM_NAMES = Collections.unmodifiableSet(tmp);
     }
-    //private MPAccessToken jwt;
-    private SignedJWT jwt;
-    private JWTClaimsSet claimsSet;
+    private String jwt;
+    private String type;
+    private JwtClaims claimsSet;
 
     /**
      * Create the DefaultJWTCallerPrincipal from the parsed JWT token and the extracted principal name
      * @param jwt - the parsed JWT token representation
      * @param name - the extracted unqiue name to use as the principal name; from "upn", "preferred_username" or "sub" claim
      */
-    public DefaultJWTCallerPrincipal(SignedJWT jwt, JWTClaimsSet claimsSet, String name) {
+    public DefaultJWTCallerPrincipal(String jwt, String type, JwtClaims claimsSet, String name) {
         super(name);
         this.jwt = jwt;
+        this.type = type;
         this.claimsSet = claimsSet;
     }
 
     @Override
     public String getRawToken() {
-        return jwt.getParsedString();
+        return jwt;
     }
 
     @Override
     public String getIssuer() {
-        return claimsSet.getIssuer();
+        try {
+            return claimsSet.getIssuer();
+        } catch (MalformedClaimException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     @Override
     public Set<String> getAudience() {
-        List<String> aud = claimsSet.getAudience();
+        List<String> aud = null;
+        try {
+            aud = claimsSet.getAudience();
+        } catch (MalformedClaimException e) {
+            e.printStackTrace();
+        }
         HashSet<String> audSet = new HashSet<>();
         audSet.addAll(aud);
         return audSet;
@@ -94,33 +102,54 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
 
     @Override
     public String getSubject() {
-        return claimsSet.getSubject();
+        try {
+            return claimsSet.getSubject();
+        } catch (MalformedClaimException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
   @Override
     public String getTokenID() {
-        return claimsSet.getJWTID();
-    }
+      try {
+          return claimsSet.getJwtId();
+      } catch (MalformedClaimException e) {
+          e.printStackTrace();
+      }
+      return null;
+  }
 
     @Override
     public long getExpirationTime() {
-        return claimsSet.getExpirationTime().getTime() / 1000;
+        try {
+            return claimsSet.getExpirationTime().getValue();
+        } catch (MalformedClaimException e) {
+            e.printStackTrace();
+        }
+        return 0;
     }
 
     @Override
     public long getIssuedAtTime() {
-        return claimsSet.getIssueTime().getTime() / 1000;
+        try {
+            return claimsSet.getIssuedAt().getValue();
+        } catch (MalformedClaimException e) {
+            e.printStackTrace();
+        }
+        return 0;
     }
 
     @Override
     public Set<String> getGroups() {
         HashSet<String> groups = new HashSet<>();
         try {
-            List<String> globalGroups = claimsSet.getStringListClaim("groups");
+            List<String> globalGroups = claimsSet.getStringListClaimValue("groups");
             if (globalGroups != null) {
                 groups.addAll(globalGroups);
             }
-        } catch (ParseException e) {
+        } catch (MalformedClaimException e) {
+            e.printStackTrace();
         }
         return groups;
     }
@@ -146,7 +175,7 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
                 claim = getIssuedAtTime();
                 break;
             default:
-                claim = claimsSet.getClaim(claimName);
+                claim = claimsSet.getClaimValue(claimName);
         }
         return claim;
     }
@@ -176,14 +205,14 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
                 ", issuer='" + getIssuer() + '\'' +
                 ", audience=" + getAudience() +
                 ", subject='" + getSubject() + '\'' +
-                ", type='" + jwt.getHeader().getType() + '\'' +
-                ", issuedFor='" + claimsSet.getClaim("azp") + '\'' +
+                ", type='" + type + '\'' +
+                ", issuedFor='" + getClaim("azp") + '\'' +
                 ", authTime=" + getClaim("auth_time") +
                 ", givenName='" + getClaim("given_name") + '\'' +
                 ", familyName='" + getClaim("family_name") + '\'' +
                 ", middleName='" + getClaim("middle_name") + '\'' +
                 ", nickName='" + getClaim("nickname") + '\'' +
-                ", preferredUsername='" + getClaim("preferred_name") + '\'' +
+                ", preferredUsername='" + getClaim("preferred_username") + '\'' +
                 ", email='" + getClaim("email") + '\'' +
                 ", emailVerified=" + getClaim("emailVerified") +
                 ", allowedOrigins=" + getClaim("allowedOrigins") +
