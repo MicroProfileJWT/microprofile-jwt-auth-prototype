@@ -19,13 +19,26 @@
  */
 package org.eclipse.microprofile.jwt.impl;
 
+import java.util.Collections;
+import java.util.Date;
+
+import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.JWSVerifier;
+import com.nimbusds.jose.KeySourceException;
+import com.nimbusds.jose.crypto.RSASSAVerifier;
+import com.nimbusds.jose.proc.BadJOSEException;
+import com.nimbusds.jose.proc.JWSKeySelector;
+import com.nimbusds.jose.proc.SecurityContext;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
+import com.nimbusds.jwt.proc.BadJWTException;
+import com.nimbusds.jwt.proc.ConfigurableJWTProcessor;
+import com.nimbusds.jwt.proc.DefaultJWTProcessor;
+import org.eclipse.microprofile.jwt.principal.JWTAuthContextInfo;
 import org.eclipse.microprofile.jwt.principal.JWTCallerPrincipal;
 import org.eclipse.microprofile.jwt.principal.JWTCallerPrincipalFactory;
 import org.eclipse.microprofile.jwt.principal.ParseException;
-import org.eclipse.microprofile.jwt.principal.JWTAuthContextInfo;
-import org.keycloak.TokenVerifier;
-import org.keycloak.common.VerificationException;
-import org.keycloak.representations.JsonWebToken;
 
 /**
  * A default implementation of the abstract JWTCallerPrincipalFactory that uses the Keycloak token parsing classes.
@@ -39,51 +52,66 @@ public class DefaultJWTCallerPrincipalFactory extends JWTCallerPrincipalFactory 
     }
 
     @Override
-    public JWTCallerPrincipal parse(String token, JWTAuthContextInfo authContextInfo) throws ParseException {
+    public JWTCallerPrincipal parse(final String token, final JWTAuthContextInfo authContextInfo) throws ParseException {
         JWTCallerPrincipal principal = null;
-        try {
 
-            // Verify the token
-            TokenVerifier<MPAccessToken> verifier = TokenVerifier.create(token, MPAccessToken.class)
-                    .publicKey(authContextInfo.getSignerKey())
-                    .withChecks(new TokenVerifier.RealmUrlCheck(authContextInfo.getIssuedBy()));
-            if(authContextInfo.getExpGracePeriodSecs() > 0) {
-                verifier = verifier.withChecks(new ExpCheck<>(authContextInfo.getExpGracePeriodSecs()));
-            }
-            MPAccessToken jwt = verifier.getToken();
-            verifier.verify();
-            // Save the raw bearer token in the other claims for use by the JWTPrincipal#getRawToken() method
-            jwt.getOtherClaims().put("bearer_token", token);
+        try {
+            SignedJWT signedJWT = SignedJWT.parse(token);
+            // Validate the signature
+            JWSVerifier verifier = new RSASSAVerifier(authContextInfo.getSignerKey());
+            signedJWT.verify(verifier);
+            // Validate the issuer and expiration date
+            ConfigurableJWTProcessor<SecurityContext> jwtProcessor = new DefaultJWTProcessor<>();
+            jwtProcessor.setJWTClaimsSetVerifier((claimsSet, context) -> {
+                String issuer = claimsSet.getIssuer();
+                if (issuer == null || ! issuer.equals(authContextInfo.getIssuedBy())) {
+                    throw new BadJWTException("Invalid token issuer");
+                }
+                if(authContextInfo.getExpGracePeriodSecs() > 0) {
+                    Date expMS = null;
+                    try {
+                        // Nimbus coverts exp to a Date
+                        expMS = claimsSet.getDateClaim("exp");
+                    } catch (java.text.ParseException e) {
+                        throw new BadJWTException("Failed to get exp claim", e);
+                    }
+                    long now = System.currentTimeMillis();
+                    long expUpperMS = now + authContextInfo.getExpGracePeriodSecs() * 1000;
+                    // Fail if expMS is not in the past more than grace period ms
+                    if (expMS.getTime() < expUpperMS) {
+                        throw new BadJWTException("Token is expired");
+                    }
+                }
+            });
+            JWSKeySelector<SecurityContext> authContextKeySelector = (header, context) -> {
+                if(header.getAlgorithm() != JWSAlgorithm.RS256)
+                    throw new KeySourceException("RS256 algorithm no specified");
+                return Collections.singletonList(authContextInfo.getSignerKey());
+            };
+            jwtProcessor.setJWSKeySelector(authContextKeySelector);
+            jwtProcessor.process(signedJWT, null);
+
             // We have to determine the unique name to use as the principal name. It comes from upn, preferred_username, sub in that order
-            String principalName = (String) jwt.getOtherClaims().get("upn");
+            JWTClaimsSet claimsSet = signedJWT.getJWTClaimsSet();
+            String principalName = claimsSet.getStringClaim("upn");
             if(principalName == null) {
-                principalName = (String) jwt.getOtherClaims().get("preferred_username");
+                principalName = claimsSet.getStringClaim("preferred_username");
                 if(principalName == null) {
-                    principalName = jwt.getSubject();
+                    principalName = claimsSet.getSubject();
                 }
             }
-            principal = new DefaultJWTCallerPrincipal(jwt, principalName);
+            principal = new DefaultJWTCallerPrincipal(signedJWT, claimsSet, principalName);
         }
-        catch (VerificationException e) {
-            throw new ParseException("Failed to verify the input token", e);
+        catch (java.text.ParseException e) {
+            throw new ParseException("Failed to parse token", e);
         }
-        return principal;
-    }
+        catch (JOSEException e) {
+            throw new ParseException("Failed to verify token signature", e);
+        }
+        catch (BadJOSEException e) {
+            throw new ParseException("Failed to verify token claims", e);
+        }
 
-    static class ExpCheck<T extends JsonWebToken> implements TokenVerifier.Predicate<T> {
-        private int expGracePeriodSecs;
-        ExpCheck(int expGracePeriodSecs) {
-            this.expGracePeriodSecs = expGracePeriodSecs;
-        }
-        @Override
-        public boolean test(T t) throws VerificationException {
-            // Take the expiration in seconds since epoch and convert to ms
-            long expMS = t.getExpiration();
-            expMS *= 1000;
-            long now = System.currentTimeMillis();
-            long expUpperMS = now + expGracePeriodSecs*1000;
-            // If expMS is in the past more than grace period ms
-            return expMS > expUpperMS;
-        }
+        return principal;
     }
 }

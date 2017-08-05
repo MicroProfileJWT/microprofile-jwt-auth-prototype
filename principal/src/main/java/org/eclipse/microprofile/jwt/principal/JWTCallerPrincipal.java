@@ -29,7 +29,7 @@ import javax.security.enterprise.CallerPrincipal;
  */
 public abstract class JWTCallerPrincipal extends CallerPrincipal implements JWTPrincipal {
     /** The character to use to encode service specific groups/roles in the groups/roles set
-     * @see #getRoles()
+     * @see #getGroups()
      */
     public static final char SERVICE_NAME_SEPARATOR = ';';
 

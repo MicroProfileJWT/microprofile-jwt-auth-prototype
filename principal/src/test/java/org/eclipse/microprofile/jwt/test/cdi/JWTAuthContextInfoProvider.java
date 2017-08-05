@@ -20,15 +20,11 @@
 package org.eclipse.microprofile.jwt.test.cdi;
 
 import org.eclipse.microprofile.jwt.principal.JWTAuthContextInfo;
-import org.keycloak.common.util.PemUtils;
+import org.eclipse.microprofile.jwt.test.util.TokenUtils;
 
 import javax.annotation.PostConstruct;
 import javax.enterprise.context.Dependent;
 import javax.enterprise.inject.Produces;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.security.interfaces.RSAPublicKey;
 
 /**
@@ -47,14 +43,11 @@ public class JWTAuthContextInfoProvider {
     void init() {
         contextInfo = new JWTAuthContextInfo();
         contextInfo.setIssuedBy("https://server.example.com");
-        InputStream pkIS = getClass().getResourceAsStream("/publicKey.pem");
-        BufferedReader bis = new BufferedReader(new InputStreamReader(pkIS));
         try {
-            String publicKeyPem = bis.readLine();
-            RSAPublicKey pk = (RSAPublicKey) PemUtils.decodePublicKey(publicKeyPem);
+            RSAPublicKey pk = (RSAPublicKey) TokenUtils.readPublicKey("/publicKey.pem");
             contextInfo.setSignerKey(pk);
         }
-        catch (IOException e) {
+        catch (Exception e) {
             throw new IllegalStateException("Failed to load public key", e);
         }
     }

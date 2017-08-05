@@ -19,6 +19,17 @@
  */
 package org.eclipse.microprofile.jwt.test.format;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.security.KeyPair;
+import java.security.PrivateKey;
+import java.util.HashSet;
+import java.util.Set;
+
+import javax.inject.Inject;
+
 import org.eclipse.microprofile.jwt.principal.JWTAuthContextInfo;
 import org.eclipse.microprofile.jwt.principal.JWTCallerPrincipal;
 import org.eclipse.microprofile.jwt.principal.JWTCallerPrincipalFactory;
@@ -28,24 +39,6 @@ import org.eclipse.microprofile.jwt.test.util.TokenUtils;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.keycloak.common.util.KeyUtils;
-import org.keycloak.common.util.PemUtils;
-import org.keycloak.jose.jws.JWSBuilder;
-import org.keycloak.jose.jws.JWSInput;
-import org.keycloak.representations.JsonWebToken;
-
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.security.KeyPair;
-import java.security.PrivateKey;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import javax.inject.Inject;
 
 /**
  * Basic token parsing and validation tests
@@ -57,33 +50,6 @@ public class TestTokenValidation {
     private JWTAuthContextInfo authContextInfo;
 
     /**
-     * Create a token string from the jwk-content1.json test resources to understand the Keycloak representation
-     * @throws Exception
-     */
-    @Test
-    public void testJWT1() throws Exception {
-        String jwt = generateTokenString("/jwk-content1.json");
-        System.out.printf("jwt: %s\n", jwt);
-
-        JWSInput input = new JWSInput(jwt);
-        JsonWebToken jwtObj = input.readJsonContent(JsonWebToken.class);
-
-        Map<String, Object> otherClaims = jwtObj.getOtherClaims();
-        System.out.printf("otherClaims.keys: %s\n", otherClaims.keySet());
-        List<String> roleNames = (List<String>) otherClaims.get("roles");
-        System.out.printf("roles: %s\n", roleNames);
-        System.out.printf("groups(%s): %s\n", otherClaims.get("groups").getClass(), otherClaims.get("groups"));
-        System.out.printf("preferred_username: %s\n", otherClaims.get("preferred_username"));
-        System.out.printf("unique_username: %s\n", otherClaims.get("unique_username"));
-        Map<String, Object> resourceAccess = (Map<String, Object>) otherClaims.get("resource_access");
-        System.out.printf("resource_access(%s): keys:%s; %s\n", resourceAccess.getClass(), resourceAccess.keySet(), resourceAccess);
-        for(Map.Entry<String, Object> entry : resourceAccess.entrySet()) {
-            Object value = resourceAccess.get(entry.getKey());
-            System.out.printf("%s: %s(%s)\n", entry.getKey(), value, value.getClass());
-        }
-    }
-
-    /**
      * Create a JWT token representation of the jwk-content1.json test resource and then parse it into a
      * JWTCallerPrincipal to validate the RI implementation.
      *
@@ -91,7 +57,9 @@ public class TestTokenValidation {
      */
     @Test
     public void testRIJWTCallerPrincipal() throws Exception {
-        String jwt = generateTokenString("/jwk-content1.json");
+        HashSet<TokenUtils.InvalidFields> invalidFields = new HashSet<>();
+        invalidFields.add(TokenUtils.InvalidFields.EXP);
+        String jwt = TokenUtils.generateTokenString("/jwk-content1.json", invalidFields);
         System.out.printf("jwt: %s\n", jwt);
         JWTCallerPrincipalFactory factory = JWTCallerPrincipalFactory.instance();
         JWTAuthContextInfo noExpACI = new JWTAuthContextInfo(authContextInfo);
@@ -103,24 +71,12 @@ public class TestTokenValidation {
         Assert.assertEquals("bearer_token", jwt, callerPrincipal.getRawToken());
         Assert.assertEquals("iss", "https://server.example.com", callerPrincipal.getIssuer());
         Assert.assertEquals("sub", "24400320", callerPrincipal.getSubject());
-        Assert.assertEquals("aud", "s6BhdRkqt3", callerPrincipal.getAudience()[0]);
+        Assert.assertEquals("aud", "s6BhdRkqt3", callerPrincipal.getAudience().toArray()[0]);
         Assert.assertEquals("exp", 1311281970, callerPrincipal.getExpirationTime());
         Assert.assertEquals("iat", 1311280970, callerPrincipal.getIssuedAtTime());
         Assert.assertEquals("name", "jdoe@example.com", callerPrincipal.getName());
         Assert.assertEquals("jti", "a-123", callerPrincipal.getTokenID());
 
-        // Validate the roles
-        Set<String> roles = callerPrincipal.getRoles();
-        String[] expectedRoleNames = {"role-in-realm", "user", "manager"};
-        HashSet<String> missingRoles = new HashSet<>();
-        for (String role : expectedRoleNames) {
-            if(!roles.contains(role)) {
-                missingRoles.add(role);
-            }
-        }
-        if(missingRoles.size() > 0) {
-            Assert.fail("There are missing roles: "+missingRoles);
-        }
         // Validate the groups
         Set<String> groups = callerPrincipal.getGroups();
         String[] expectedGroupNames = {"group1", "group2"};
@@ -135,9 +91,12 @@ public class TestTokenValidation {
         }
 
         // Validate other claims
-        Object authTime = callerPrincipal.getOtherClaim("auth_time");
-        Assert.assertTrue("auth_time is an Integer", authTime instanceof Integer);
-        Assert.assertEquals("auth_time as int is 1311280969", 1311280969, authTime);
+        Object authTime = callerPrincipal.getClaim("auth_time");
+        Assert.assertTrue("auth_time is a Number", authTime instanceof Number);
+        Assert.assertEquals("auth_time as int is 1311280969", 1311280969, ((Number)authTime).intValue());
+
+        String preferredName = (String) callerPrincipal.getClaim("preferred_username");
+        Assert.assertEquals("preferred_username is jdoe", "jdoe", preferredName);
     }
 
     /**
@@ -204,44 +163,6 @@ public class TestTokenValidation {
             Throwable cause = e.getCause();
             System.out.printf("Failed as expected with cause: %s\n", cause.getMessage());
         }
-    }
-
-    /**
-     * Utility method to generate a JWT string from a JSON resource file that is signed by the privateKey.pem
-     * test resource key.
-     *
-     * @param jsonResName - name of test resources file
-     * @return the JWT string
-     * @throws IOException on parse failure
-     */
-    private static String generateTokenString(String jsonResName) throws IOException {
-        InputStream pkIS = TestTokenValidation.class.getResourceAsStream("/privateKey.pem");
-        BufferedReader bis = new BufferedReader(new InputStreamReader(pkIS));
-        String privateKeyPem = bis.readLine();
-        PrivateKey pk = PemUtils.decodePrivateKey(privateKeyPem);
-        InputStream contentIS = TestTokenValidation.class.getResourceAsStream(jsonResName);
-        byte[] tmp = new byte[4096];
-        int length = contentIS.read(tmp);
-        byte[] content = new byte[length];
-        System.arraycopy(tmp, 0, content, 0, length);
-        String jwt = new JWSBuilder()
-                .type("Bearer")
-                .kid("privateKey.pem")
-                .content(content)
-                .rsa256(pk);
-        return jwt;
-    }
-
-    /**
-     * Utility main entry point to generate a new public/private key pair
-     * @param args
-     */
-    public static void main(String[] args) {
-        KeyPair kp = KeyUtils.generateRsaKeyPair(1024);
-        String publilcKeyPem = PemUtils.encodeKey(kp.getPublic());
-        String privateKeyPem = PemUtils.encodeKey(kp.getPrivate());
-        System.out.printf("publicKey: %s\n", publilcKeyPem);
-        System.out.printf("privateKeyPem: %s\n", privateKeyPem);
     }
 
 }
