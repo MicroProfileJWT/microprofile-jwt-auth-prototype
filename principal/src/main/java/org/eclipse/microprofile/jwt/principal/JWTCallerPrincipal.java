@@ -19,11 +19,9 @@
  */
 package org.eclipse.microprofile.jwt.principal;
 
-import java.io.Serializable;
 import java.util.Optional;
-import java.util.stream.Stream;
 
-import org.eclipse.microprofile.jwt.JWTPrincipal;
+import org.eclipse.microprofile.jwt.JsonWebToken;
 
 import javax.security.enterprise.CallerPrincipal;
 
@@ -31,7 +29,7 @@ import javax.security.enterprise.CallerPrincipal;
  * An abstract CallerPrincipal implementation that provides access to the JWT claims that are required by
  * the microprofile token.
  */
-public abstract class JWTCallerPrincipal extends CallerPrincipal implements JWTPrincipal {
+public abstract class JWTCallerPrincipal extends CallerPrincipal implements JsonWebToken {
     /** The character to use to encode service specific groups/roles in the groups/roles set
      * @see #getGroups()
      */
@@ -49,7 +47,7 @@ public abstract class JWTCallerPrincipal extends CallerPrincipal implements JWTP
     /**
      * Generate a human readable version of the caller principal and associated JWT.
      * @param showAll - should all claims associated with the JWT be displayed or should only those defined in the
-     *                JWTPrincipal interface be displayed.
+     *                JsonWebToken interface be displayed.
      * @return human readable presentation of the caller principal and associated JWT.
      */
     public abstract String toString(boolean showAll);

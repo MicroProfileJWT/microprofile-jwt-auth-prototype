@@ -29,9 +29,8 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
 import javax.ws.rs.ext.Provider;
 import java.io.IOException;
-import java.security.Principal;
 
-import org.eclipse.microprofile.jwt.JWTPrincipal;
+import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.eclipse.microprofile.jwt.principal.JWTAuthContextInfo;
 import org.eclipse.microprofile.jwt.principal.JWTCallerPrincipal;
 import org.eclipse.microprofile.jwt.principal.JWTCallerPrincipalFactory;
@@ -54,7 +53,7 @@ public class JWTAuthFilter implements ContainerRequestFilter {
         if (authHeaderVal.startsWith("Bearer")) {
             try {
                 String bearerToken = authHeaderVal.substring(7);
-                JWTPrincipal jwtPrincipal = validate(bearerToken);
+                JsonWebToken jwtPrincipal = validate(bearerToken);
                 // Install the JWT principal as the caller
                 final SecurityContext securityContext = requestContext.getSecurityContext();
                 JWTSecurityContext jwtSecurityContext = new JWTSecurityContext(securityContext, jwtPrincipal);
@@ -73,7 +72,7 @@ public class JWTAuthFilter implements ContainerRequestFilter {
         }
     }
 
-    protected JWTPrincipal validate(String bearerToken) throws ParseException {
+    protected JsonWebToken validate(String bearerToken) throws ParseException {
         JWTCallerPrincipalFactory factory = JWTCallerPrincipalFactory.instance();
         JWTCallerPrincipal callerPrincipal = factory.parse(bearerToken, authContextInfo);
         return callerPrincipal;

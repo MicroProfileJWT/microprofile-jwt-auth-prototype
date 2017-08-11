@@ -19,11 +19,10 @@
  */
 package org.eclipse.microprofile.jwt.impl;
 
-import org.eclipse.microprofile.jwt.JWTClaimType;
+import org.eclipse.microprofile.jwt.Claims;
 import org.eclipse.microprofile.jwt.principal.JWTCallerPrincipal;
 import org.jose4j.jwt.JwtClaims;
 import org.jose4j.jwt.MalformedClaimException;
-import org.jose4j.jwt.NumericDate;
 
 import javax.security.auth.Subject;
 
@@ -57,7 +56,7 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
 
     @Override
     public Set<String> getAudience() {
-        Optional<Object> aud = claim(JWTClaimType.AUD.getName());
+        Optional<Object> aud = claim(Claims.aud.name());
         Set<String> audSet = new HashSet<>();
         if(aud.isPresent()) {
             Object audObj = aud.get();
@@ -96,30 +95,33 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
 
     @Override
     public Object getClaim(String claimName) {
-        JWTClaimType claimType = JWTClaimType.UNKNOWN;
+        Claims claimType = Claims.UNKNOWN;
         Object claim = null;
         try {
-            claimType = JWTClaimType.valueOf(claimName.toUpperCase());
+            claimType = Claims.valueOf(claimName);
         } catch (IllegalArgumentException e) {
 
         }
         // Handle the jose4j NumericDate types and
         switch (claimType) {
-            case EXP:
-            case IAT:
-            case AUTH_TIME:
-            case NBF:
-            case UPDATED_AT:
+            case exp:
+            case iat:
+            case auth_time:
+            case nbf:
+            case updated_at:
                 try {
-                    claim = claimsSet.getClaimValue(claimType.getName(), Long.class);
+                    claim = claimsSet.getClaimValue(claimType.name(), Long.class);
                     if(claim == null) {
                         claim = new Long(0);
                     }
                 } catch (MalformedClaimException e) {
                 }
                 break;
+            case UNKNOWN:
+                claim = claimsSet.getClaimValue(claimName);
+                break;
             default:
-                claim = claimsSet.getClaimValue(claimName.toLowerCase());
+                claim = claimsSet.getClaimValue(claimType.name());
         }
         return claim;
     }
@@ -135,7 +137,7 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
     /**
      * TODO: showAll is ignored and currently assumed true
      * @param showAll - should all claims associated with the JWT be displayed or should only those defined in the
-     *                JWTPrincipal interface be displayed.
+     *                JsonWebToken interface be displayed.
      * @return JWTCallerPrincipal string view
      */
     @Override
@@ -144,7 +146,7 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
                 "id='" + getTokenID() + '\'' +
                 ", name='" + getName() + '\'' +
                 ", expiration=" + getExpirationTime() +
-                ", notBefore=" + getClaim(JWTClaimType.NBF.name()) +
+                ", notBefore=" + getClaim(Claims.nbf.name()) +
                 ", issuedAt=" + getIssuedAtTime() +
                 ", issuer='" + getIssuer() + '\'' +
                 ", audience=" + getAudience() +
@@ -158,7 +160,7 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
                 ", nickName='" + getClaim("nickname") + '\'' +
                 ", preferredUsername='" + getClaim("preferred_username") + '\'' +
                 ", email='" + getClaim("email") + '\'' +
-                ", emailVerified=" + getClaim( JWTClaimType.EMAIL_VERIFIED.name()) +
+                ", emailVerified=" + getClaim( Claims.email_verified.name()) +
                 ", allowedOrigins=" + getClaim("allowedOrigins") +
                 ", updatedAt=" + getClaim("updated_at") +
                 ", acr='" + getClaim("acr") + '\''

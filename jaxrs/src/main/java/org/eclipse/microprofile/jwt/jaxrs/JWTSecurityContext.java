@@ -23,17 +23,17 @@ import java.security.Principal;
 
 import javax.ws.rs.core.SecurityContext;
 
-import org.eclipse.microprofile.jwt.JWTPrincipal;
+import org.eclipse.microprofile.jwt.JsonWebToken;
 
 /**
- * A delegating JAX-RS SecurityContext prototype that provides access to the JWTPrincipal
+ * A delegating JAX-RS SecurityContext prototype that provides access to the JsonWebToken
  * TODO
  */
 public class JWTSecurityContext implements SecurityContext {
     private SecurityContext delegate;
-    private JWTPrincipal principal;
+    private JsonWebToken principal;
 
-    JWTSecurityContext(SecurityContext delegate, JWTPrincipal principal) {
+    JWTSecurityContext(SecurityContext delegate, JsonWebToken principal) {
         this.delegate = delegate;
         this.principal = principal;
     }

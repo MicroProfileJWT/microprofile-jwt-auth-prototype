@@ -19,7 +19,7 @@
  */
 package org.eclipse.microprofile.jwt.impl;
 
-import org.eclipse.microprofile.jwt.JWTClaimType;
+import org.eclipse.microprofile.jwt.Claims;
 import org.eclipse.microprofile.jwt.principal.JWTAuthContextInfo;
 import org.eclipse.microprofile.jwt.principal.JWTCallerPrincipal;
 import org.eclipse.microprofile.jwt.principal.JWTCallerPrincipalFactory;
@@ -82,7 +82,7 @@ public class DefaultJWTCallerPrincipalFactory extends JWTCallerPrincipalFactory 
                     principalName = claimsSet.getSubject();
                 }
             }
-            claimsSet.setClaim(JWTClaimType.RAW_TOKEN.getName(), token);
+            claimsSet.setClaim(Claims.raw_token.name(), token);
             principal = new DefaultJWTCallerPrincipal(token, type, claimsSet, principalName);
         }
         catch (InvalidJwtException e) {
