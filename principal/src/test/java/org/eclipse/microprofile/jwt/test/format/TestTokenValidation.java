@@ -19,17 +19,12 @@
  */
 package org.eclipse.microprofile.jwt.test.format;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.security.KeyPair;
-import java.security.PrivateKey;
 import java.util.HashSet;
 import java.util.Set;
 
 import javax.inject.Inject;
 
+import org.eclipse.microprofile.jwt.JWTClaimType;
 import org.eclipse.microprofile.jwt.principal.JWTAuthContextInfo;
 import org.eclipse.microprofile.jwt.principal.JWTCallerPrincipal;
 import org.eclipse.microprofile.jwt.principal.JWTCallerPrincipalFactory;
@@ -68,7 +63,7 @@ public class TestTokenValidation {
         System.out.printf("Parsed caller principal: %s\n", callerPrincipal.toString(true));
 
         // Validate the required claims
-        Assert.assertEquals("bearer_token", jwt, callerPrincipal.getRawToken());
+        Assert.assertEquals("raw_token", jwt, callerPrincipal.getRawToken());
         Assert.assertEquals("iss", "https://server.example.com", callerPrincipal.getIssuer());
         Assert.assertEquals("sub", "24400320", callerPrincipal.getSubject());
         Assert.assertEquals("aud", "s6BhdRkqt3", callerPrincipal.getAudience().toArray()[0]);
@@ -97,6 +92,24 @@ public class TestTokenValidation {
 
         String preferredName = (String) callerPrincipal.getClaim("preferred_username");
         Assert.assertEquals("preferred_username is jdoe", "jdoe", preferredName);
+
+    }
+
+    @Test
+    public void testClaimNames() throws Exception {
+        String jwt = TokenUtils.generateTokenString("/RolesEndpoint.json");
+        System.out.printf("jwt: %s\n", jwt);
+        JWTCallerPrincipalFactory factory = JWTCallerPrincipalFactory.instance();
+        JWTAuthContextInfo noExpACI = new JWTAuthContextInfo(authContextInfo);
+        noExpACI.setExpGracePeriodSecs(-1);
+        JWTCallerPrincipal callerPrincipal = factory.parse(jwt, noExpACI);
+        Set<String> claimNames = callerPrincipal.getClaimNames();
+        System.out.println(claimNames);
+        String[] expectedNames = {"iss", "jti", "sub", "preferred_username", "aud", "exp", "iat", "auth_time", "roles",
+            "groups", "resource_access"};
+        for(String expected : expectedNames) {
+            Assert.assertTrue(expected, claimNames.contains(expected));
+        }
     }
 
     /**
@@ -105,11 +118,11 @@ public class TestTokenValidation {
      */
     @Test
     public void testUtilsToken() throws Exception {
+        long nowSec = System.currentTimeMillis() / 1000;
         String jwt = TokenUtils.generateTokenString("/jwk-content1.json");
         JWTCallerPrincipalFactory factory = JWTCallerPrincipalFactory.instance();
         JWTCallerPrincipal callerPrincipal = factory.parse(jwt, authContextInfo);
         System.out.println(callerPrincipal);
-        long nowSec = System.currentTimeMillis() / 1000;
         long iss = callerPrincipal.getIssuedAtTime();
         Assert.assertTrue(String.format("now(%d) < 1s from iss(%d)", nowSec, iss), (nowSec - iss) < 1);
         long exp = callerPrincipal.getExpirationTime();

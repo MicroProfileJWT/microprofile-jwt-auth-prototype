@@ -19,6 +19,10 @@
  */
 package org.eclipse.microprofile.jwt.principal;
 
+import java.io.Serializable;
+import java.util.Optional;
+import java.util.stream.Stream;
+
 import org.eclipse.microprofile.jwt.JWTPrincipal;
 
 import javax.security.enterprise.CallerPrincipal;
@@ -49,4 +53,9 @@ public abstract class JWTCallerPrincipal extends CallerPrincipal implements JWTP
      * @return human readable presentation of the caller principal and associated JWT.
      */
     public abstract String toString(boolean showAll);
+
+    public <T> Optional<T> claim(String claimName) {
+        T claim = (T) getClaim(claimName);
+        return Optional.ofNullable(claim);
+    }
 }

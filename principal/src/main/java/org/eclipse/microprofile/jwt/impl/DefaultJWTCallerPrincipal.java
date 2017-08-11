@@ -19,15 +19,19 @@
  */
 package org.eclipse.microprofile.jwt.impl;
 
+import org.eclipse.microprofile.jwt.JWTClaimType;
 import org.eclipse.microprofile.jwt.principal.JWTCallerPrincipal;
 import org.jose4j.jwt.JwtClaims;
 import org.jose4j.jwt.MalformedClaimException;
+import org.jose4j.jwt.NumericDate;
 
 import javax.security.auth.Subject;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -35,27 +39,6 @@ import java.util.Set;
  * @see JwtClaims
  */
 public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
-    private static Set<String> OTHER_CLAIM_NAMES;
-    static {
-        // Initialize the other claim names to some of the key ones in OIDC/OAuth2 but not MP JWT
-        Set<String> tmp = new HashSet<>();
-        tmp.add("nbf");
-        tmp.add("auth_time");
-        tmp.add("azp");
-        tmp.add("nonce");
-        tmp.add("acr");
-        tmp.add("at_hash");
-        tmp.add("name");
-        tmp.add("given_name");
-        tmp.add("family_name");
-        tmp.add("email");
-        tmp.add("email_verified");
-        tmp.add("zoneinfo");
-        tmp.add("website");
-        tmp.add("preferred_username");
-        tmp.add("updated_at");
-        OTHER_CLAIM_NAMES = Collections.unmodifiableSet(tmp);
-    }
     private String jwt;
     private String type;
     private JwtClaims claimsSet;
@@ -73,71 +56,22 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
     }
 
     @Override
-    public String getRawToken() {
-        return jwt;
-    }
-
-    @Override
-    public String getIssuer() {
-        try {
-            return claimsSet.getIssuer();
-        } catch (MalformedClaimException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
-    @Override
     public Set<String> getAudience() {
-        List<String> aud = null;
-        try {
-            aud = claimsSet.getAudience();
-        } catch (MalformedClaimException e) {
-            e.printStackTrace();
+        Optional<Object> aud = claim(JWTClaimType.AUD.getName());
+        Set<String> audSet = new HashSet<>();
+        if(aud.isPresent()) {
+            Object audObj = aud.get();
+
+            if(audObj.getClass().isArray()) {
+                String[] audArray = (String[]) audObj;
+                audSet.addAll(Arrays.asList(audArray));
+            } else {
+                audSet.add((String) audObj);
+            }
+        } else {
+            audSet = Collections.emptySet();
         }
-        HashSet<String> audSet = new HashSet<>();
-        audSet.addAll(aud);
         return audSet;
-    }
-
-    @Override
-    public String getSubject() {
-        try {
-            return claimsSet.getSubject();
-        } catch (MalformedClaimException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
-  @Override
-    public String getTokenID() {
-      try {
-          return claimsSet.getJwtId();
-      } catch (MalformedClaimException e) {
-          e.printStackTrace();
-      }
-      return null;
-  }
-
-    @Override
-    public long getExpirationTime() {
-        try {
-            return claimsSet.getExpirationTime().getValue();
-        } catch (MalformedClaimException e) {
-            e.printStackTrace();
-        }
-        return 0;
-    }
-
-    @Override
-    public long getIssuedAtTime() {
-        try {
-            return claimsSet.getIssuedAt().getValue();
-        } catch (MalformedClaimException e) {
-            e.printStackTrace();
-        }
-        return 0;
     }
 
     @Override
@@ -154,28 +88,38 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
         return groups;
     }
 
-    /**
-     * Access the standard but non-MP mandated claim names this token may have. Note that the token may have even more
-     * custom claims avaialable via the {@link #getClaim(String)} method.
-     * @return standard but non-MP mandated claim names this token may have.
-     */
+
     @Override
     public Set<String> getClaimNames() {
-        return OTHER_CLAIM_NAMES;
+        return new HashSet<>(claimsSet.getClaimNames());
     }
 
     @Override
     public Object getClaim(String claimName) {
+        JWTClaimType claimType = JWTClaimType.UNKNOWN;
         Object claim = null;
-        switch (claimName) {
-            case "exp":
-                claim = getExpirationTime();
-                break;
-            case "iat":
-                claim = getIssuedAtTime();
+        try {
+            claimType = JWTClaimType.valueOf(claimName.toUpperCase());
+        } catch (IllegalArgumentException e) {
+
+        }
+        // Handle the jose4j NumericDate types and
+        switch (claimType) {
+            case EXP:
+            case IAT:
+            case AUTH_TIME:
+            case NBF:
+            case UPDATED_AT:
+                try {
+                    claim = claimsSet.getClaimValue(claimType.getName(), Long.class);
+                    if(claim == null) {
+                        claim = new Long(0);
+                    }
+                } catch (MalformedClaimException e) {
+                }
                 break;
             default:
-                claim = claimsSet.getClaimValue(claimName);
+                claim = claimsSet.getClaimValue(claimName.toLowerCase());
         }
         return claim;
     }
@@ -200,7 +144,7 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
                 "id='" + getTokenID() + '\'' +
                 ", name='" + getName() + '\'' +
                 ", expiration=" + getExpirationTime() +
-                ", notBefore=" + getClaim("nbf") +
+                ", notBefore=" + getClaim(JWTClaimType.NBF.name()) +
                 ", issuedAt=" + getIssuedAtTime() +
                 ", issuer='" + getIssuer() + '\'' +
                 ", audience=" + getAudience() +
@@ -214,7 +158,7 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
                 ", nickName='" + getClaim("nickname") + '\'' +
                 ", preferredUsername='" + getClaim("preferred_username") + '\'' +
                 ", email='" + getClaim("email") + '\'' +
-                ", emailVerified=" + getClaim("emailVerified") +
+                ", emailVerified=" + getClaim( JWTClaimType.EMAIL_VERIFIED.name()) +
                 ", allowedOrigins=" + getClaim("allowedOrigins") +
                 ", updatedAt=" + getClaim("updated_at") +
                 ", acr='" + getClaim("acr") + '\''
