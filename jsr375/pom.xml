@@ -19,18 +19,18 @@
 
     <parent>
         <groupId>org.eclipse.microprofile.jwt</groupId>
-        <artifactId>jwt-auth-ri-parent</artifactId>
+        <artifactId>jwt-auth-prototype-parent</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>jwt-auth-jsr375-ri</artifactId>
+    <artifactId>jwt-auth-jsr375-prototype</artifactId>
     <version>1.0-SNAPSHOT</version>
     <name>MicroProfile JWT Auth JSR-375 Reference Implementation</name>
 
     <dependencies>
         <dependency>
             <groupId>org.eclipse.microprofile.jwt</groupId>
-            <artifactId>jwt-auth-principal-ri</artifactId>
+            <artifactId>jwt-auth-principal-prototype</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
         <dependency>
@@ -106,7 +106,7 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
                 <configuration>
-                    <Bundle-SymbolicName>org.eclipse.microprofile.jwt.jsr375.ri</Bundle-SymbolicName>
+                    <Bundle-SymbolicName>org.eclipse.microprofile.jwt.jsr375.prototype</Bundle-SymbolicName>
                     <Bundle-Name>MicroProfile JWT RBAC Auth JSR-375 Reference Implementation bundle</Bundle-Name>
                     <archive>
                         <manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>

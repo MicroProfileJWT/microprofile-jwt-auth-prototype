@@ -19,18 +19,18 @@
 
     <parent>
         <groupId>org.eclipse.microprofile.jwt</groupId>
-        <artifactId>jwt-auth-ri-parent</artifactId>
+        <artifactId>jwt-auth-prototype-parent</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>jwt-auth-jaxrs-ri</artifactId>
+    <artifactId>jwt-auth-jaxrs-prototype</artifactId>
     <version>1.0-SNAPSHOT</version>
     <name>MicroProfile JWT Auth JAX-RS Reference Implementation</name>
 
     <dependencies>
         <dependency>
             <groupId>org.eclipse.microprofile.jwt</groupId>
-            <artifactId>jwt-auth-principal-ri</artifactId>
+            <artifactId>jwt-auth-principal-prototype</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
         <dependency>
