@@ -8,7 +8,7 @@
   "iat": 1311280970,
   "auth_time": 1311280969,
   "roles": [
-    "Echoer"
+    "Echoer", "Tester"
   ],
   "groups": ["group1", "group2"],
   "resource_access": {

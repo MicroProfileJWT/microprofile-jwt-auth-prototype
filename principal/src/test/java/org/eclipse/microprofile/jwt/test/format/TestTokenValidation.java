@@ -19,11 +19,13 @@
  */
 package org.eclipse.microprofile.jwt.test.format;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 
 import javax.inject.Inject;
 
+import org.eclipse.microprofile.jwt.Claims;
 import org.eclipse.microprofile.jwt.principal.JWTAuthContextInfo;
 import org.eclipse.microprofile.jwt.principal.JWTCallerPrincipal;
 import org.eclipse.microprofile.jwt.principal.JWTCallerPrincipalFactory;
@@ -109,6 +111,28 @@ public class TestTokenValidation {
         for(String expected : expectedNames) {
             Assert.assertTrue(expected, claimNames.contains(expected));
         }
+    }
+
+    @Test
+    public void testAllClaimTypes() throws Exception {
+        String jwt = TokenUtils.generateTokenString("/AllClaims.json");
+        System.out.printf("jwt: %s\n", jwt);
+        JWTCallerPrincipalFactory factory = JWTCallerPrincipalFactory.instance();
+        JWTAuthContextInfo noExpACI = new JWTAuthContextInfo(authContextInfo);
+        noExpACI.setExpGracePeriodSecs(300);
+        JWTCallerPrincipal callerPrincipal = factory.parse(jwt, noExpACI);
+        ArrayList<String> errors = new ArrayList<>();
+        for(Claims claim : Claims.values()) {
+            if(claim == Claims.UNKNOWN)
+                continue;
+            Object value = callerPrincipal.getClaim(claim.name());
+            if(value == null) {
+                errors.add(String.format("%s has null value", claim.name()));
+            } else if(!claim.getType().isAssignableFrom(value.getClass())) {
+                errors.add(String.format("%s type(%s) != Claim.type(%s)", claim.name(), value.getClass(), claim.getType()));
+            }
+        }
+        Assert.assertTrue("No bad values seen: "+errors, errors.size() == 0);
     }
 
     /**

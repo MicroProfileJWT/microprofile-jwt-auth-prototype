@@ -1,0 +1,73 @@
+{
+  "iss": "https://server.example.com",
+  "sub": "stringValue-529991",
+  "upn": "user1@example.com",
+  "aud": [
+    "value1",
+    "value2"
+  ],
+  "exp": 1502665536,
+  "iat": 1502665536,
+  "jti": "stringValue-2149",
+  "groups": [
+    "group1",
+    "group2"
+  ],
+  "raw_token": "stringValue-549328",
+  "nbf": 1502665500,
+  "auth_time": 1502665536,
+  "updated_at": 1502665536,
+  "azp": "stringValue-307362",
+  "nonce": "stringValue-76622",
+  "at_hash": 1502665536,
+  "c_hash": 1502665536,
+  "full_name": "stringValue-694561",
+  "family_name": "stringValue-351582",
+  "middle_name": "stringValue-450075",
+  "nickname": "stringValue-562021",
+  "given_name": "stringValue-914244",
+  "preferred_username": "stringValue-26532",
+  "email": "stringValue-720532",
+  "email_verified": true,
+  "gender": "stringValue-515695",
+  "birthdate": "stringValue-462442",
+  "zoneinfo": "stringValue-654492",
+  "locale": "stringValue-488835",
+  "phone_number": "stringValue-966567",
+  "phone_number_verified": true,
+  "address": {
+    "street_address": "12345 Somestreet SW",
+    "locality": "MyCity",
+    "region": "WA",
+    "postal_code": "98908",
+    "country": "US"
+  },
+  "acr": "stringValue-416975",
+  "amr": "stringValue-644982",
+  "sub_jwk": {
+    "kty": "EC",
+    "kid": "Public key used in JWS A.3 example",
+    "crv": "P-256",
+    "x": "f83OJ3D2xF1Bg8vub9tLe1gHMzV76e8Tus9uPHvRVEU",
+    "y": "x_FEzRu9m36HLN_tue659LNpXW6pCyStikYjKIWI5a0"
+  },
+  "cnf": "stringValue-509678",
+  "sip_from_tag": "stringValue-608211",
+  "sip_date": "stringValue-402467",
+  "sip_callid": "stringValue-321205",
+  "sip_cseq_num": "stringValue-481149",
+  "sip_via_branch": "stringValue-429798",
+  "orig": "stringValue-20086",
+  "dest": "stringValue-625714",
+  "mky": "stringValue-595399",
+  "jwk": {
+    "kty": "EC",
+    "use": "sig",
+    "crv": "P-256",
+    "x": "18wHLeIgW9wVN6VD1Txgpqy2LszYkMf6J8njVAibvhM",
+    "y": "-V4dS4UaLMgP_4fY4j8ir7cl1TXlFdAgcx55o7TkcSA"
+  },
+  "jwe": "stringValue-685492",
+  "kid": "stringValue-212113",
+  "jku": "stringValue-119314"
+}

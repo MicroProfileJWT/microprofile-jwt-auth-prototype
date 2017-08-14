@@ -24,12 +24,16 @@ import org.eclipse.microprofile.jwt.principal.JWTCallerPrincipal;
 import org.jose4j.jwt.JwtClaims;
 import org.jose4j.jwt.MalformedClaimException;
 
+import javax.json.Json;
+import javax.json.JsonObject;
+import javax.json.JsonObjectBuilder;
 import javax.security.auth.Subject;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -52,23 +56,23 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
         this.jwt = jwt;
         this.type = type;
         this.claimsSet = claimsSet;
+        fixJoseTypes();
     }
 
     @Override
     public Set<String> getAudience() {
-        Optional<Object> aud = claim(Claims.aud.name());
         Set<String> audSet = new HashSet<>();
-        if(aud.isPresent()) {
-            Object audObj = aud.get();
-
-            if(audObj.getClass().isArray()) {
-                String[] audArray = (String[]) audObj;
-                audSet.addAll(Arrays.asList(audArray));
-            } else {
-                audSet.add((String) audObj);
+        try {
+            List<String> audList = claimsSet.getStringListClaimValue("aud");
+            if (audList != null) {
+                audSet.addAll(audList);
             }
-        } else {
-            audSet = Collections.emptySet();
+        } catch (MalformedClaimException e) {
+            try {
+                String aud = claimsSet.getStringClaimValue("aud");
+                audSet.add(aud);
+            } catch (MalformedClaimException e1) {
+            }
         }
         return audSet;
     }
@@ -116,6 +120,12 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
                     }
                 } catch (MalformedClaimException e) {
                 }
+                break;
+            case groups:
+                claim = getGroups();
+                break;
+            case aud:
+                claim = getAudience();
                 break;
             case UNKNOWN:
                 claim = claimsSet.getClaimValue(claimName);
@@ -176,4 +186,36 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
         return tmp.toString();
     }
 
+    /**
+     * Convert the types jose4j uses for address, sub_jwk, and jwk
+     */
+    private void fixJoseTypes() {
+        if(claimsSet.hasClaim(Claims.address.name())) {
+            replaceMap(Claims.address.name());
+        }
+        if(claimsSet.hasClaim(Claims.jwk.name())) {
+            replaceMap(Claims.jwk.name());
+        }
+        if(claimsSet.hasClaim(Claims.sub_jwk.name())) {
+            replaceMap(Claims.sub_jwk.name());
+        }
+    }
+
+    /**
+     * Replace the jose4j Map<String,Object> with a JsonObject
+     * @param name - claim name
+     */
+    private void replaceMap(String name) {
+        try {
+            Map<String, Object> map = claimsSet.getClaimValue(name, Map.class);
+            JsonObjectBuilder builder = Json.createObjectBuilder();
+            for(Map.Entry<String,Object> entry : map.entrySet()) {
+                builder.add(entry.getKey(), entry.getValue().toString());
+            }
+            JsonObject jsonObject = builder.build();
+            claimsSet.setClaim(name, jsonObject);
+        } catch (MalformedClaimException e) {
+            e.printStackTrace();
+        }
+    }
 }
