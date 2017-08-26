@@ -89,30 +89,6 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>biz.aQute.bnd</groupId>
-                <artifactId>bnd-maven-plugin</artifactId>
-                <version>2.4.1</version>
-
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>bnd-process</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <configuration>
-                    <Bundle-SymbolicName>org.eclipse.microprofile.jwt.jsr375.prototype</Bundle-SymbolicName>
-                    <Bundle-Name>MicroProfile JWT RBAC Auth JSR-375 Reference Implementation bundle</Bundle-Name>
-                    <archive>
-                        <manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
-                    </archive>
-                </configuration>
-            </plugin>
         </plugins>
     </build>
 
