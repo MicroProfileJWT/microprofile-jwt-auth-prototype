@@ -8,8 +8,10 @@ import java.util.logging.Level;
 
 import javax.json.Json;
 import javax.json.JsonArray;
+import javax.json.JsonArrayBuilder;
 import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
+import javax.json.JsonValue;
 
 import net.minidev.json.JSONObject;
 import net.minidev.json.parser.JSONParser;
@@ -68,7 +70,7 @@ public class Jose4jTest {
                 JsonObject entryJsonObject = replaceMap((Map<String, Object>) entryValue);
                 builder.add(entry.getKey(), entryJsonObject);
             } else if(entryValue instanceof List) {
-                JsonArray array = Json.createArrayBuilder((List) entryValue).build();
+                JsonArray array = (JsonArray) wrapValue(entryValue);
                 builder.add(entry.getKey(), array);
             } else if(entryValue instanceof Long || entryValue instanceof Integer) {
                 long lvalue = ((Number) entryValue).longValue();
@@ -79,9 +81,46 @@ public class Jose4jTest {
             } else if(entryValue instanceof Boolean) {
                 boolean flag = ((Boolean) entryValue).booleanValue();
                 builder.add(entry.getKey(), flag);
+            } else if(entryValue instanceof String) {
+                builder.add(entry.getKey(), entryValue.toString());
             }
         }
         return builder.build();
     }
-
+    private JsonValue wrapValue(Object value) {
+        JsonValue jsonValue = null;
+        if(value instanceof Number) {
+            Number number = (Number) value;
+            if((number instanceof Long) || (number instanceof Integer)) {
+                jsonValue = Json.createObjectBuilder()
+                        .add("tmp", number.longValue())
+                        .build()
+                        .getJsonNumber("tmp");
+            } else {
+                jsonValue = Json.createObjectBuilder()
+                        .add("tmp", number.doubleValue())
+                        .build()
+                        .getJsonNumber("tmp");
+            }
+        }
+        else if(value instanceof Boolean) {
+            Boolean flag = (Boolean) value;
+            jsonValue = flag ? JsonValue.TRUE : JsonValue.FALSE;
+        }
+        else if(value instanceof List) {
+            JsonArrayBuilder arrayBuilder = Json.createArrayBuilder();
+            List list = (List) value;
+            for(Object element : list) {
+                if(element instanceof String) {
+                    arrayBuilder.add(element.toString());
+                }
+                else {
+                    JsonValue jvalue = wrapValue(element);
+                    arrayBuilder.add(jvalue);
+                }
+            }
+            jsonValue = arrayBuilder.build();
+        }
+        return jsonValue;
+    }
 }

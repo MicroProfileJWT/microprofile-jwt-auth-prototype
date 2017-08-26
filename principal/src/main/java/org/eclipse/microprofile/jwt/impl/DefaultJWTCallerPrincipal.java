@@ -30,6 +30,7 @@ import javax.json.JsonArrayBuilder;
 import javax.json.JsonNumber;
 import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
+import javax.json.JsonValue;
 import javax.json.spi.JsonProvider;
 import javax.security.auth.Subject;
 
@@ -247,6 +248,7 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
             logger.log(Level.WARNING, "replaceMap failure for: "+name, e);
         }
     }
+
     private JsonObject replaceMap(Map<String, Object> map) {
         JsonObjectBuilder builder = Json.createObjectBuilder();
         for(Map.Entry<String,Object> entry : map.entrySet()) {
@@ -255,7 +257,7 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
                 JsonObject entryJsonObject = replaceMap((Map<String, Object>) entryValue);
                 builder.add(entry.getKey(), entryJsonObject);
             } else if(entryValue instanceof List) {
-                JsonArray array = Json.createArrayBuilder((List) entryValue).build();
+                JsonArray array = (JsonArray) wrapValue(entryValue);
                 builder.add(entry.getKey(), array);
             } else if(entryValue instanceof Long || entryValue instanceof Integer) {
                 long lvalue = ((Number) entryValue).longValue();
@@ -266,10 +268,49 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
             } else if(entryValue instanceof Boolean) {
                 boolean flag = ((Boolean) entryValue).booleanValue();
                 builder.add(entry.getKey(), flag);
+            } else if(entryValue instanceof String) {
+                builder.add(entry.getKey(), entryValue.toString());
             }
         }
         return builder.build();
     }
+    private JsonValue wrapValue(Object value) {
+        JsonValue jsonValue = null;
+        if(value instanceof Number) {
+            Number number = (Number) value;
+            if((number instanceof Long) || (number instanceof Integer)) {
+                jsonValue = Json.createObjectBuilder()
+                        .add("tmp", number.longValue())
+                        .build()
+                        .getJsonNumber("tmp");
+            } else {
+                jsonValue = Json.createObjectBuilder()
+                        .add("tmp", number.doubleValue())
+                        .build()
+                        .getJsonNumber("tmp");
+            }
+        }
+        else if(value instanceof Boolean) {
+            Boolean flag = (Boolean) value;
+            jsonValue = flag ? JsonValue.TRUE : JsonValue.FALSE;
+        }
+        else if(value instanceof List) {
+            JsonArrayBuilder arrayBuilder = Json.createArrayBuilder();
+            List list = (List) value;
+            for(Object element : list) {
+                if(element instanceof String) {
+                    arrayBuilder.add(element.toString());
+                }
+                else {
+                    JsonValue jvalue = wrapValue(element);
+                    arrayBuilder.add(jvalue);
+                }
+            }
+            jsonValue = arrayBuilder.build();
+        }
+        return jsonValue;
+    }
+
 
 
     /**
@@ -279,7 +320,7 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
     private void replaceList(String name) {
         try {
             List list = claimsSet.getClaimValue(name, List.class);
-            JsonArray array = Json.createArrayBuilder(list).build();
+            JsonArray array = (JsonArray) wrapValue(list);
             claimsSet.setClaim(name, array);
         } catch (MalformedClaimException e) {
             logger.log(Level.WARNING, "replaceList failure for: "+name, e);
@@ -289,12 +330,7 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
     private void replaceNumber(String name) {
         try {
             Number number = claimsSet.getClaimValue(name, Number.class);
-            JsonNumber jsonNumber;
-            if((number instanceof Long) || (number instanceof Integer)) {
-                jsonNumber = JsonProvider.provider().createValue(number.longValue());
-            } else {
-                jsonNumber = JsonProvider.provider().createValue(number.doubleValue());
-            }
+            JsonNumber jsonNumber = (JsonNumber) wrapValue(number);
             claimsSet.setClaim(name, jsonNumber);
         } catch (MalformedClaimException e) {
             logger.log(Level.WARNING, "replaceNumber failure for: "+name, e);

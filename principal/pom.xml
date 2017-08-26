@@ -25,7 +25,7 @@
 
     <artifactId>jwt-auth-principal-prototype</artifactId>
     <version>1.0-SNAPSHOT</version>
-    <name>MicroProfile JWT Auth Principal Reference Implementation</name>
+    <name>MicroProfile JWT Auth Principal Prototype Implementation</name>
 
     <properties>
         <version.testng>6.10</version.testng>
