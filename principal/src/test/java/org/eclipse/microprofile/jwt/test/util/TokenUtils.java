@@ -23,18 +23,23 @@ import org.jose4j.jws.AlgorithmIdentifiers;
 import org.jose4j.jws.JsonWebSignature;
 import org.jose4j.jwt.JwtClaims;
 import org.jose4j.jwt.NumericDate;
+import org.jose4j.keys.HmacKey;
 
 import java.io.InputStream;
+import java.math.BigInteger;
+import java.security.Key;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.SecureRandom;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -58,16 +63,30 @@ public class TokenUtils {
 
     /**
      * Utility method to generate a JWT string from a JSON resource file that is signed by the privateKey.pem
-     * test resource key.
+     * test resource key, possibly with invalid fields.
      *
      * @param jsonResName   - name of test resources file
-     * @param invalidFields - the set of claims that should be added with invalid values to test failure modes
+     * @param invalidClaims - the set of claims that should be added with invalid values to test failure modes
      * @return the JWT string
      * @throws Exception on parse failure
      */
-    public static String generateTokenString(String jsonResName, Set<InvalidFields> invalidFields) throws Exception {
-        if (invalidFields == null) {
-            invalidFields = Collections.emptySet();
+    public static String generateTokenString(String jsonResName, Set<InvalidClaims> invalidClaims) throws Exception {
+        return generateTokenString(jsonResName, invalidClaims, null);
+    }
+
+    /**
+     * Utility method to generate a JWT string from a JSON resource file that is signed by the privateKey.pem
+     * test resource key, possibly with invalid fields.
+     *
+     * @param jsonResName   - name of test resources file
+     * @param invalidClaims - the set of claims that should be added with invalid values to test failure modes
+     * @param timeClaims - used to return the exp, iat, auth_time claims
+     * @return the JWT string
+     * @throws Exception on parse failure
+     */
+    public static String generateTokenString(String jsonResName, Set<InvalidClaims> invalidClaims, Map<String, Long> timeClaims) throws Exception {
+        if (invalidClaims == null) {
+            invalidClaims = Collections.emptySet();
         }
         InputStream contentIS = TokenUtils.class.getResourceAsStream(jsonResName);
         byte[] tmp = new byte[4096];
@@ -78,19 +97,19 @@ public class TokenUtils {
         JwtClaims claims = JwtClaims.parse(new String(content));
 
         // Change the issuer to INVALID_ISSUER for failure testing if requested
-        if (invalidFields.contains(InvalidFields.ISSUER)) {
+        if (invalidClaims.contains(InvalidClaims.ISSUER)) {
             claims.setIssuer("INVALID_ISSUER");
         }
         // If the exp claim is not updated, it will be an old value that should be seen as expired
-        if (!invalidFields.contains(InvalidFields.EXP)) {
+        if (!invalidClaims.contains(InvalidClaims.EXP)) {
             NumericDate now = NumericDate.now();
             claims.setExpirationTimeMinutesInTheFuture(5);
             claims.setIssuedAt(now);
             claims.setClaim("auth_time", currentTimeInSecs());
         }
 
-        PrivateKey pk;
-        if (invalidFields.contains(InvalidFields.SIGNER)) {
+        Key pk;
+        if (invalidClaims.contains(InvalidClaims.SIGNER)) {
             // Generate a new random private key to sign with to test invalid signatures
             KeyPair keyPair = generateKeyPair(2048);
             pk = keyPair.getPrivate();
@@ -101,7 +120,15 @@ public class TokenUtils {
         }
 
         JsonWebSignature jws = new JsonWebSignature();
-        jws.setAlgorithmHeaderValue(AlgorithmIdentifiers.RSA_USING_SHA256);
+        if (invalidClaims.contains(InvalidClaims.ALG)) {
+            SecureRandom random = new SecureRandom();
+            BigInteger secret = BigInteger.probablePrime(256, random);
+            pk = new HmacKey(secret.toByteArray());
+            jws.setAlgorithmHeaderValue(AlgorithmIdentifiers.HMAC_SHA256);
+        }
+        else {
+            jws.setAlgorithmHeaderValue(AlgorithmIdentifiers.RSA_USING_SHA256);
+        }
         jws.setHeader("typ", "JWT");
         jws.setKeyIdHeaderValue("/privateKey.pem");
         jws.setKey(pk);
@@ -175,9 +202,10 @@ public class TokenUtils {
     /**
      * Enums to indicate which claims should be set to invalid values for testing failure modes
      */
-    public enum InvalidFields {
+    public enum InvalidClaims {
         ISSUER, // Set an invalid issuer
         EXP,    // Set an invalid expiration
-        SIGNER  // Sign the token with the incorrect private key
+        SIGNER,  // Sign the token with the incorrect private key
+        ALG, // Sign the token with the correct private key, but HS
     }
 }

@@ -25,23 +25,31 @@ import org.jose4j.jwt.JwtClaims;
 import org.jose4j.jwt.MalformedClaimException;
 
 import javax.json.Json;
+import javax.json.JsonArray;
+import javax.json.JsonArrayBuilder;
+import javax.json.JsonNumber;
 import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
+import javax.json.spi.JsonProvider;
 import javax.security.auth.Subject;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * A default implementation of JWTCallerPrincipal that wraps the jose4j JwtClaims.
  * @see JwtClaims
  */
 public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
+    private static Logger logger = Logger.getLogger(DefaultJWTCallerPrincipal.class.getName());
     private String jwt;
     private String type;
     private JwtClaims claimsSet;
@@ -104,7 +112,6 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
         try {
             claimType = Claims.valueOf(claimName);
         } catch (IllegalArgumentException e) {
-
         }
         // Handle the jose4j NumericDate types and
         switch (claimType) {
@@ -199,6 +206,32 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
         if(claimsSet.hasClaim(Claims.sub_jwk.name())) {
             replaceMap(Claims.sub_jwk.name());
         }
+        // Handle custom claims
+        Set<String> customClaimNames = filterCustomClaimNames(claimsSet.getClaimNames());
+        for(String name : customClaimNames) {
+            Object claimValue = claimsSet.getClaimValue(name);
+            Class claimType = claimValue.getClass();
+            if(claimValue instanceof List) {
+                replaceList(name);
+            } else if(claimValue instanceof Map) {
+                replaceMap(name);
+            } else if(claimValue instanceof Number) {
+                replaceNumber(name);
+            }
+        }
+    }
+
+    /**
+     * Determine the custom claims in the set
+     * @param claimNames - the current set of claim names in this token
+     * @return the possibly empty set of names for non-Claims claims
+     */
+    private Set<String> filterCustomClaimNames(Collection<String> claimNames) {
+        HashSet<String> customNames = new HashSet<>(claimNames);
+        for(Claims claim : Claims.values()) {
+            customNames.remove(claim.name());
+        }
+        return customNames;
     }
 
     /**
@@ -208,14 +241,63 @@ public class DefaultJWTCallerPrincipal extends JWTCallerPrincipal {
     private void replaceMap(String name) {
         try {
             Map<String, Object> map = claimsSet.getClaimValue(name, Map.class);
-            JsonObjectBuilder builder = Json.createObjectBuilder();
-            for(Map.Entry<String,Object> entry : map.entrySet()) {
-                builder.add(entry.getKey(), entry.getValue().toString());
-            }
-            JsonObject jsonObject = builder.build();
+            JsonObject jsonObject = replaceMap(map);
             claimsSet.setClaim(name, jsonObject);
         } catch (MalformedClaimException e) {
-            e.printStackTrace();
+            logger.log(Level.WARNING, "replaceMap failure for: "+name, e);
+        }
+    }
+    private JsonObject replaceMap(Map<String, Object> map) {
+        JsonObjectBuilder builder = Json.createObjectBuilder();
+        for(Map.Entry<String,Object> entry : map.entrySet()) {
+            Object entryValue = entry.getValue();
+            if(entryValue instanceof Map) {
+                JsonObject entryJsonObject = replaceMap((Map<String, Object>) entryValue);
+                builder.add(entry.getKey(), entryJsonObject);
+            } else if(entryValue instanceof List) {
+                JsonArray array = Json.createArrayBuilder((List) entryValue).build();
+                builder.add(entry.getKey(), array);
+            } else if(entryValue instanceof Long || entryValue instanceof Integer) {
+                long lvalue = ((Number) entryValue).longValue();
+                builder.add(entry.getKey(), lvalue);
+            } else if(entryValue instanceof Double || entryValue instanceof Float) {
+                double dvalue = ((Number) entryValue).doubleValue();
+                builder.add(entry.getKey(), dvalue);
+            } else if(entryValue instanceof Boolean) {
+                boolean flag = ((Boolean) entryValue).booleanValue();
+                builder.add(entry.getKey(), flag);
+            }
+        }
+        return builder.build();
+    }
+
+
+    /**
+     * Replace the jose4j List<?> with a JsonArray
+     * @param name - claim name
+     */
+    private void replaceList(String name) {
+        try {
+            List list = claimsSet.getClaimValue(name, List.class);
+            JsonArray array = Json.createArrayBuilder(list).build();
+            claimsSet.setClaim(name, array);
+        } catch (MalformedClaimException e) {
+            logger.log(Level.WARNING, "replaceList failure for: "+name, e);
+        }
+    }
+
+    private void replaceNumber(String name) {
+        try {
+            Number number = claimsSet.getClaimValue(name, Number.class);
+            JsonNumber jsonNumber;
+            if((number instanceof Long) || (number instanceof Integer)) {
+                jsonNumber = JsonProvider.provider().createValue(number.longValue());
+            } else {
+                jsonNumber = JsonProvider.provider().createValue(number.doubleValue());
+            }
+            claimsSet.setClaim(name, jsonNumber);
+        } catch (MalformedClaimException e) {
+            logger.log(Level.WARNING, "replaceNumber failure for: "+name, e);
         }
     }
 }

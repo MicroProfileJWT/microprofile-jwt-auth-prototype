@@ -53,8 +53,8 @@ public class TestTokenValidation {
      */
     @Test
     public void testRIJWTCallerPrincipal() throws Exception {
-        HashSet<TokenUtils.InvalidFields> invalidFields = new HashSet<>();
-        invalidFields.add(TokenUtils.InvalidFields.EXP);
+        HashSet<TokenUtils.InvalidClaims> invalidFields = new HashSet<>();
+        invalidFields.add(TokenUtils.InvalidClaims.EXP);
         String jwt = TokenUtils.generateTokenString("/jwk-content1.json", invalidFields);
         System.out.printf("jwt: %s\n", jwt);
         JWTCallerPrincipalFactory factory = JWTCallerPrincipalFactory.instance();
@@ -158,8 +158,8 @@ public class TestTokenValidation {
      */
     @Test()
     public void testExpiredValidation() throws Exception {
-        HashSet<TokenUtils.InvalidFields> invalidFields = new HashSet<>();
-        invalidFields.add(TokenUtils.InvalidFields.EXP);
+        HashSet<TokenUtils.InvalidClaims> invalidFields = new HashSet<>();
+        invalidFields.add(TokenUtils.InvalidClaims.EXP);
         String jwt = TokenUtils.generateTokenString("/jwk-content1.json", invalidFields);
         JWTCallerPrincipalFactory factory = JWTCallerPrincipalFactory.instance();
         try {
@@ -173,8 +173,8 @@ public class TestTokenValidation {
 
     @Test
     public void testBadIssuer() throws Exception {
-        HashSet<TokenUtils.InvalidFields> invalidFields = new HashSet<>();
-        invalidFields.add(TokenUtils.InvalidFields.ISSUER);
+        HashSet<TokenUtils.InvalidClaims> invalidFields = new HashSet<>();
+        invalidFields.add(TokenUtils.InvalidClaims.ISSUER);
         String jwt = TokenUtils.generateTokenString("/jwk-content1.json", invalidFields);
         JWTCallerPrincipalFactory factory = JWTCallerPrincipalFactory.instance();
         try {
@@ -188,8 +188,8 @@ public class TestTokenValidation {
 
     @Test
     public void testBadSigner() throws Exception {
-        HashSet<TokenUtils.InvalidFields> invalidFields = new HashSet<>();
-        invalidFields.add(TokenUtils.InvalidFields.SIGNER);
+        HashSet<TokenUtils.InvalidClaims> invalidFields = new HashSet<>();
+        invalidFields.add(TokenUtils.InvalidClaims.SIGNER);
         String jwt = TokenUtils.generateTokenString("/jwk-content1.json", invalidFields);
         JWTCallerPrincipalFactory factory = JWTCallerPrincipalFactory.instance();
         try {
