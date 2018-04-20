@@ -48,8 +48,9 @@ public class JWTAuthFilter implements ContainerRequestFilter {
 	
 	private static Logger log = Logger.getLogger(JWTAuthFilter.class.getName());
 	
+	// Package accessible to set it in test cases
     @Inject
-    private JWTAuthContextInfo authContextInfo;
+    JWTAuthContextInfo authContextInfo;
 
     @Override
     public void filter(ContainerRequestContext requestContext) throws IOException {
