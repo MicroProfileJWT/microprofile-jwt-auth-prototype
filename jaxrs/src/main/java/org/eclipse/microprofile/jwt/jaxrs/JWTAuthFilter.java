@@ -29,6 +29,8 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
 import javax.ws.rs.ext.Provider;
 import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.eclipse.microprofile.jwt.principal.JWTAuthContextInfo;
@@ -43,13 +45,16 @@ import org.eclipse.microprofile.jwt.principal.ParseException;
 @Priority(Priorities.AUTHENTICATION)
 @Provider
 public class JWTAuthFilter implements ContainerRequestFilter {
+	
+	private static Logger log = Logger.getLogger(JWTAuthFilter.class.getName());
+	
     @Inject
     private JWTAuthContextInfo authContextInfo;
 
     @Override
     public void filter(ContainerRequestContext requestContext) throws IOException {
         String authHeaderVal = requestContext.getHeaderString("Authorization");
-        System.err.printf("JWTAuthFilter.authHeaderVal: %s\n", authHeaderVal);
+        log.fine("JWTAuthFilter.authHeaderVal: "+authHeaderVal);
         if (authHeaderVal.startsWith("Bearer")) {
             try {
                 String bearerToken = authHeaderVal.substring(7);
@@ -58,16 +63,16 @@ public class JWTAuthFilter implements ContainerRequestFilter {
                 final SecurityContext securityContext = requestContext.getSecurityContext();
                 JWTSecurityContext jwtSecurityContext = new JWTSecurityContext(securityContext, jwtPrincipal);
                 requestContext.setSecurityContext(jwtSecurityContext);
-                System.out.printf("Success\n");
+                log.fine("Success\n");
             }
             catch (Exception ex) {
-                System.err.printf("Failed with ex=%s\n", ex.getMessage());
+            	log.log(Level.WARNING, "Failed setting security context", ex);
                 ex.printStackTrace();
                 requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED).build());
             }
         }
         else {
-            System.err.printf("Failed due to missing Authorization bearer token\n");
+        	log.info("Failed due to missing Authorization bearer token");
             requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED).build());
         }
     }
