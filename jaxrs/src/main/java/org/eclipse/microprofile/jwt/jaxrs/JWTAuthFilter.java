@@ -48,14 +48,15 @@ public class JWTAuthFilter implements ContainerRequestFilter {
 	
 	private static Logger log = Logger.getLogger(JWTAuthFilter.class.getName());
 	
+	  // Package accessible to set it in test cases
     @Inject
-    private JWTAuthContextInfo authContextInfo;
+    JWTAuthContextInfo authContextInfo;
 
     @Override
     public void filter(ContainerRequestContext requestContext) throws IOException {
         String authHeaderVal = requestContext.getHeaderString("Authorization");
         log.fine("JWTAuthFilter.authHeaderVal: "+authHeaderVal);
-        if (authHeaderVal.startsWith("Bearer")) {
+        if (authHeaderVal != null && authHeaderVal.startsWith("Bearer")) {
             try {
                 String bearerToken = authHeaderVal.substring(7);
                 JsonWebToken jwtPrincipal = validate(bearerToken);
