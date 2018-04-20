@@ -55,7 +55,7 @@ public class JWTAuthFilter implements ContainerRequestFilter {
     public void filter(ContainerRequestContext requestContext) throws IOException {
         String authHeaderVal = requestContext.getHeaderString("Authorization");
         log.fine("JWTAuthFilter.authHeaderVal: "+authHeaderVal);
-        if (authHeaderVal.startsWith("Bearer")) {
+        if (authHeaderVal != null && authHeaderVal.startsWith("Bearer")) {
             try {
                 String bearerToken = authHeaderVal.substring(7);
                 JsonWebToken jwtPrincipal = validate(bearerToken);
