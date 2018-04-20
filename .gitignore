@@ -7,6 +7,9 @@
 # Compiled class file
 *.class
 
+# Maven targe folger
+target/
+
 # Log file
 *.log
 
@@ -20,3 +23,18 @@
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
+
+# Eclipse Java project files and folders
+.metadata
+bin/
+tmp/
+*.tmp
+*.bak
+*.swp
+*~.nib
+local.properties
+.settings/
+.project
+.classpath
+.loadpath
+.recommenders
