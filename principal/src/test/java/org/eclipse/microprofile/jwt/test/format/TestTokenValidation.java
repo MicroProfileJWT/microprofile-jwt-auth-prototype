@@ -107,7 +107,7 @@ public class TestTokenValidation {
         Set<String> claimNames = callerPrincipal.getClaimNames();
         System.out.println(claimNames);
         String[] expectedNames = {"iss", "jti", "sub", "preferred_username", "aud", "exp", "iat", "auth_time", "roles",
-            "groups", "resource_access"};
+            "groups"};
         for(String expected : expectedNames) {
             Assert.assertTrue(expected, claimNames.contains(expected));
         }
