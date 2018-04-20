@@ -23,12 +23,16 @@ import java.net.URL;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ServiceLoader;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * The factory class that provides the token string to JWTCallerPrincipal parsing for a given implementation.
  */
 public abstract class JWTCallerPrincipalFactory {
     private static JWTCallerPrincipalFactory instance;
+    
+    private static final Logger log = Logger.getLogger(JWTCallerPrincipalFactory.class.getName());
 
     /**
      * Parse the given bearer token string into a JWTCallerPrincipal instance.
@@ -90,7 +94,7 @@ public abstract class JWTCallerPrincipalFactory {
         if (instance == null) {
             ServiceLoader<JWTCallerPrincipalFactory> sl = ServiceLoader.load(JWTCallerPrincipalFactory.class, cl);
             URL u = cl.getResource("/META-INF/services/org.eclipse.microprofile.jwt.principal.JWTCallerPrincipalFactory");
-            System.out.printf("JWTCallerPrincipalFactory, cl=%s, u=%s, sl=%s\n", cl, u, sl);
+            log.info(String.format("JWTCallerPrincipalFactory, cl=%s, u=%s, sl=%s\n", cl, u, sl));
             try {
                 for (JWTCallerPrincipalFactory spi : sl) {
                     if (instance != null) {
@@ -99,13 +103,13 @@ public abstract class JWTCallerPrincipalFactory {
                                         + spi.getClass().getName() + " and "
                                         + instance.getClass().getName());
                     } else {
-                        System.out.printf("sl=%s, loaded=%s\n", sl, spi);
+                    	log.info(String.format("sl=%s, loaded=%s\n", sl, spi));
                         instance = spi;
                     }
                 }
             }
             catch (Throwable e) {
-                System.err.printf("Warning: %s\n", e.getMessage());
+            	log.log(Level.SEVERE, "Could not load JWTCallerPrincipalFactory", e);
             }
         }
         return instance;
