@@ -48,7 +48,7 @@ public class JWTAuthFilter implements ContainerRequestFilter {
 	
 	private static Logger log = Logger.getLogger(JWTAuthFilter.class.getName());
 	
-	// Package accessible to set it in test cases
+	  // Package accessible to set it in test cases
     @Inject
     JWTAuthContextInfo authContextInfo;
 
